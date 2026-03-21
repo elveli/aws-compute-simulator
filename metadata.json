@@ -1,0 +1,5 @@
+{
+  "name": "AWS Compute & Delivery Showcase",
+  "description": "Infrastructure as Code (Terraform) deploying EKS (Karpenter), ECS (Fargate Spot), and Kargo (GitOps) on AWS.",
+  "requestFramePermissions": []
+}
