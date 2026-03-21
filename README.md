@@ -8,7 +8,8 @@ This repository contains **Infrastructure as Code (Terraform)** to deploy and co
 ## Prerequisites
 
 Before you begin, ensure you have the following installed and configured:
-*   [AWS CLI](https://aws.amazon.com/cli/) (authenticated with Administrator access)
+*   [AWS CLI](https://aws.amazon.com/cli/) (authenticated with Administrator access). Ensure you have run `aws configure` or `aws sso login` and have an active profile with permissions to create VPCs, EKS clusters, and IAM roles.
+    *   *Tip: You can quickly verify your active AWS authentication by running `aws sts get-caller-identity`.*
 *   [Terraform](https://developer.hashicorp.com/terraform/downloads) (v1.3.0+)
 *   [kubectl](https://kubernetes.io/docs/tasks/tools/)
 *   [Helm](https://helm.sh/docs/intro/install/)
