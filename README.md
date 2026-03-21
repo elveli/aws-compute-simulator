@@ -32,10 +32,19 @@ terraform apply -auto-approve
 
 Once Terraform completes, you can verify the settings and status of the newly created clusters.
 
-### EKS Cluster Status
+### EKS Cluster Status & Endpoint
 Connect your local `kubectl` to the new EKS cluster:
 ```bash
 aws eks update-kubeconfig --region us-east-1 --name compute-showcase
+```
+
+Test the EKS API server endpoint reachability and view cluster info:
+```bash
+# Retrieve the public EKS API endpoint URL
+aws eks describe-cluster --name compute-showcase --query "cluster.endpoint" --output text
+
+# Verify connection to the Kubernetes control plane
+kubectl cluster-info
 ```
 
 Check the nodes and installed Helm releases (Karpenter, ArgoCD, Kargo):
@@ -45,10 +54,16 @@ kubectl get pods -A
 helm list -A
 ```
 
-### ECS Cluster Status
-Verify the ECS cluster and the Fargate capacity providers:
+### ECS Cluster Status & Endpoint
+Unlike EKS, ECS is a fully managed control plane without a dedicated cluster IP. You interact with it via the AWS API.
+
+Verify the ECS cluster is active and reachable via the AWS API:
 ```bash
-aws ecs describe-clusters --clusters compute-showcase-ecs --region us-east-1
+aws ecs describe-clusters --clusters compute-showcase-ecs --region us-east-1 --query "clusters[0].{Status:status, ClusterArn:clusterArn}"
+```
+
+List the Fargate services running on the cluster:
+```bash
 aws ecs list-services --cluster compute-showcase-ecs --region us-east-1
 ```
 
