@@ -28,13 +28,35 @@ terraform apply -auto-approve
 
 ---
 
-## Step 2: Test Karpenter on EKS
+## Step 2: Verify Cluster Status
 
-Once Terraform completes, connect your local `kubectl` to the new EKS cluster:
+Once Terraform completes, you can verify the settings and status of the newly created clusters.
 
+### EKS Cluster Status
+Connect your local `kubectl` to the new EKS cluster:
 ```bash
 aws eks update-kubeconfig --region us-east-1 --name compute-showcase
 ```
+
+Check the nodes and installed Helm releases (Karpenter, ArgoCD, Kargo):
+```bash
+kubectl get nodes
+kubectl get pods -A
+helm list -A
+```
+
+### ECS Cluster Status
+Verify the ECS cluster and the Fargate capacity providers:
+```bash
+aws ecs describe-clusters --clusters compute-showcase-ecs --region us-east-1
+aws ecs list-services --cluster compute-showcase-ecs --region us-east-1
+```
+
+---
+
+## Step 3: Test Karpenter on EKS
+
+Now that you are connected to the EKS cluster, you can test Karpenter.
 
 ### 1. Create a Karpenter NodePool
 Apply a default NodePool so Karpenter knows what types of instances it is allowed to provision:
@@ -84,7 +106,7 @@ kubectl get nodes -w
 
 ---
 
-## Step 3: Test ECS Fargate Spot
+## Step 4: Test ECS Fargate Spot
 
 The Terraform code already created an ECS Cluster (`compute-showcase-ecs`) and an ECS Service (`sample-service`) with a desired count of 0.
 
@@ -107,7 +129,7 @@ aws ecs list-tasks --cluster compute-showcase-ecs --region us-east-1
 
 ---
 
-## Step 4: Test Kargo (GitOps Delivery)
+## Step 5: Test Kargo (GitOps Delivery)
 
 The Terraform code installed Argo CD and Kargo onto your EKS cluster. You can use the Kargo CLI or Kubernetes manifests to create delivery pipelines.
 
@@ -133,7 +155,7 @@ kargo create project sample-app
 
 ---
 
-## Step 5: Cleanup
+## Step 6: Cleanup
 
 To avoid incurring ongoing AWS charges, destroy the infrastructure when you are finished experimenting:
 
