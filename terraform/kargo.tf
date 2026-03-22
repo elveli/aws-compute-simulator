@@ -42,7 +42,8 @@ resource "helm_release" "kargo" {
 
   set_sensitive {
     name  = "api.adminAccount.passwordHash"
-    value = "$2b$10$LJ88mIK6ApAHwaiWSJVmt.1a4HDc95iTp/p/UvWQLfbWvQ1/kKFb."
+    # Hash for password 'admin'
+    value = "$2b$10$pF8zw0nYvv8UAV13fJvKPOQTEzXqo.ekvkBdxioPxj8/nl4OwYwzO"
   }
 
   set_sensitive {
