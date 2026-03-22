@@ -120,6 +120,26 @@ kubectl get nodes -w
 ```
 *Notice how Karpenter provisions a single EC2 node to fit all 5 pods.*
 
+### 4. View Deployments, Services, and Node Attributes
+
+**Using `kubectl`:**
+```bash
+# View deployments and their status
+kubectl get deployments -o wide
+
+# View services
+kubectl get svc -o wide
+
+# View detailed pod information and events
+kubectl describe pod -l app=inflate
+
+# View node attributes, including Karpenter capacity types (Spot vs On-Demand)
+kubectl get nodes --show-labels | grep karpenter.sh/capacity-type
+
+# View detailed node allocation and attributes
+kubectl describe node -l karpenter.sh/capacity-type=spot
+```
+
 ---
 
 ## Step 4: Test ECS Fargate Spot
@@ -142,6 +162,29 @@ aws ecs update-service \
 aws ecs list-tasks --cluster compute-showcase-ecs --region us-east-1
 ```
 *Notice how Fargate provisions 5 distinct, isolated microVMs (one for each task), rather than bin-packing them onto a single EC2 instance.*
+
+### 3. View Tasks, Services, and Attributes
+
+**Using `ecs-cli`:**
+```bash
+# Configure ecs-cli with your cluster
+ecs-cli configure --cluster compute-showcase-ecs --default-launch-type FARGATE --region us-east-1
+
+# List running tasks in the cluster
+ecs-cli ps --cluster compute-showcase-ecs
+```
+
+**Using AWS CLI (`aws ecs`):**
+```bash
+# View service details and deployments
+aws ecs describe-services --cluster compute-showcase-ecs --services sample-service --region us-east-1
+
+# View detailed task information (replace <task-arn> with an ARN from list-tasks)
+aws ecs describe-tasks --cluster compute-showcase-ecs --tasks <task-arn> --region us-east-1
+
+# View cluster attributes and settings
+aws ecs describe-clusters --clusters compute-showcase-ecs --include ATTACHMENTS SETTINGS --region us-east-1
+```
 
 ---
 
