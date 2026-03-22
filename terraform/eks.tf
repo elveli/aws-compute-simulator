@@ -1,6 +1,6 @@
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
-  version = "~> 19.0"
+  version = "~> 19.15"
 
   cluster_name    = var.cluster_name
   cluster_version = "1.28"
@@ -27,7 +27,7 @@ module "eks" {
 # Karpenter IAM Role & Instance Profile
 module "karpenter" {
   source  = "terraform-aws-modules/eks/aws//modules/karpenter"
-  version = "~> 19.0"
+  version = "~> 19.15"
 
   cluster_name = module.eks.cluster_name
 
