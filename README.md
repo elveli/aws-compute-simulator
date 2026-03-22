@@ -1,8 +1,8 @@
 # AWS Compute & Delivery Showcase 🚀
 
-This repository contains **Infrastructure as Code (Terraform)** to deploy and compare modern AWS compute scaling and GitOps delivery paradigms:
-1. **Karpenter on Amazon EKS:** Group-less node autoscaling that observes pending pods and provisions right-sized EC2 Spot instances.
-2. **Amazon ECS with Fargate Spot:** Serverless compute that provisions individual microVMs (1:1 ratio) for each task without managing underlying EC2 nodes.
+This repository contains **Infrastructure as Code (Terraform)** to deploy and compare modern AWS compute scaling and GitOps delivery paradigms, heavily leveraging AWS Spot capacity for cost optimization:
+1. **Karpenter on Amazon EKS (100% EC2 Spot):** Group-less node autoscaling that observes pending pods and provisions right-sized EC2 Spot instances. The core EKS managed node group (running CoreDNS and the Karpenter controller itself) is also configured to use EC2 Spot instances (`t3.medium`).
+2. **Amazon ECS with Fargate Spot:** Serverless compute that provisions individual microVMs (1:1 ratio) for each task without managing underlying EC2 nodes, utilizing Fargate Spot for deep discounts.
 3. **Kargo (GitOps Delivery):** Multi-stage application delivery pipeline installed on EKS to promote releases across environments.
 
 ## Prerequisites

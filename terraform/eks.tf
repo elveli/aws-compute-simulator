@@ -13,6 +13,7 @@ module "eks" {
     # We need a small managed node group just to run CoreDNS and the Karpenter controller itself
     karpenter_core = {
       instance_types = ["t3.medium"]
+      capacity_type  = "SPOT"
       min_size       = 2
       max_size       = 3
       desired_size   = 2
