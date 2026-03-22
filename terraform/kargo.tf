@@ -14,6 +14,22 @@ resource "helm_release" "argocd" {
   }
 }
 
+# Install cert-manager (Prerequisite for Kargo)
+resource "helm_release" "cert_manager" {
+  namespace        = "cert-manager"
+  create_namespace = true
+
+  name       = "cert-manager"
+  repository = "https://charts.jetstack.io"
+  chart      = "cert-manager"
+  version    = "v1.16.1"
+
+  set {
+    name  = "crds.enabled"
+    value = "true"
+  }
+}
+
 # Install Kargo
 resource "helm_release" "kargo" {
   namespace        = "kargo"
@@ -34,5 +50,8 @@ resource "helm_release" "kargo" {
     value = "8e6bda8fd47f6b605325d689f0777a70989edfd3d77a19983e897b60e3d78a8d"
   }
 
-  depends_on = [helm_release.argocd]
+  depends_on = [
+    helm_release.argocd,
+    helm_release.cert_manager
+  ]
 }
