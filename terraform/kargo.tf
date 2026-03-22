@@ -20,7 +20,7 @@ resource "helm_release" "kargo" {
   create_namespace = true
 
   name       = "kargo"
-  repository = "https://charts.kargo.akuity.io"
+  repository = "oci://ghcr.io/akuity/kargo-charts"
   chart      = "kargo"
   version    = "0.8.0"
 
