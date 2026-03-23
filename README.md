@@ -74,11 +74,30 @@ aws ecs list-services --cluster compute-showcase-ecs --region us-east-1
 
 Now that you are connected to the EKS cluster, you can test Karpenter.
 
-### 1. Create a Karpenter NodePool
-Apply a default NodePool so Karpenter knows what types of instances it is allowed to provision:
+### 1. Create an EC2NodeClass and Karpenter NodePool
+In Karpenter `v1beta1`, a `NodePool` must reference an `EC2NodeClass` which defines the AWS-specific configuration (like subnets, security groups, and IAM roles).
+
+First, retrieve the IAM Node Role created by Terraform, then apply both the `EC2NodeClass` and `NodePool`:
 
 ```bash
+# Get the IAM role name used by the EKS managed node group (IAM is global, so this works regardless of region)
+NODE_ROLE=$(aws iam list-roles --query "Roles[?contains(RoleName, 'karpenter_core')].RoleName" --output text | awk '{print $1}')
+
 cat <<EOF | kubectl apply -f -
+apiVersion: karpenter.k8s.aws/v1beta1
+kind: EC2NodeClass
+metadata:
+  name: default
+spec:
+  amiFamily: AL2
+  role: "\${NODE_ROLE}"
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: compute-showcase
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: compute-showcase
+---
 apiVersion: karpenter.sh/v1beta1
 kind: NodePool
 metadata:
@@ -93,6 +112,10 @@ spec:
         - key: kubernetes.io/arch
           operator: In
           values: ["amd64"]
+      nodeClassRef:
+        apiVersion: karpenter.k8s.aws/v1beta1
+        kind: EC2NodeClass
+        name: default
   limits:
     cpu: 100
   disruption:
@@ -133,10 +156,10 @@ kubectl get svc -o wide
 # View detailed pod information and events
 kubectl describe pod -l app=inflate
 
-# View node attributes, including Karpenter capacity types (Spot vs On-Demand)
-kubectl get nodes --show-labels | grep karpenter.sh/capacity-type
+# View node attributes, including capacity types (Spot vs On-Demand) for both EKS and Karpenter
+kubectl get nodes -L eks.amazonaws.com/capacityType -L karpenter.sh/capacity-type
 
-# View detailed node allocation and attributes
+# View detailed node allocation and attributes (only works after Karpenter provisions a node)
 kubectl describe node -l karpenter.sh/capacity-type=spot
 ```
 
@@ -192,25 +215,114 @@ aws ecs describe-clusters --clusters compute-showcase-ecs --include ATTACHMENTS 
 
 The Terraform code installed Argo CD and Kargo onto your EKS cluster. You can use the Kargo CLI or Kubernetes manifests to create delivery pipelines.
 
-### 1. Install the Kargo CLI
+### 1. Install the Kargo CLI (v0.8.0)
+*Note: The Kargo CLI version must match the server version (v0.8.0) deployed by Terraform. If you previously installed it via Homebrew, uninstall it first.*
+
+**For Mac (Apple Silicon / M1 / M2):**
 ```bash
-brew tap akuity/kargo
-brew install kargo
+brew uninstall kargo 2>/dev/null || true
+curl -sLO https://github.com/akuity/kargo/releases/download/v0.8.0/kargo-darwin-arm64
+chmod +x kargo-darwin-arm64
+sudo mv kargo-darwin-arm64 /usr/local/bin/kargo
 ```
 
-### 2. Access the Kargo Dashboard
-Port-forward the Kargo API server to access the UI:
+**For Mac (Intel):**
 ```bash
-kubectl port-forward svc/kargo-api -n kargo 8080:80
-# Open http://localhost:8080 in your browser
+brew uninstall kargo 2>/dev/null || true
+curl -sLO https://github.com/akuity/kargo/releases/download/v0.8.0/kargo-darwin-amd64
+chmod +x kargo-darwin-amd64
+sudo mv kargo-darwin-amd64 /usr/local/bin/kargo
 ```
 
-### 3. Create a Sample Project
-You can now create a Kargo Project, Stages (e.g., `test`, `uat`, `prod`), and promote `Freight` (container images/Helm charts) between them using the Kargo UI or CLI.
+**For Linux (AMD64):**
+```bash
+curl -sLO https://github.com/akuity/kargo/releases/download/v0.8.0/kargo-linux-amd64
+chmod +x kargo-linux-amd64
+sudo mv kargo-linux-amd64 /usr/local/bin/kargo
+```
 
+### 2. Access the Kargo Dashboard & Login
+First, start the port-forwarding process in the **background** so it keeps running. The Kargo API service exposes port `443` by default:
+```bash
+kubectl port-forward svc/kargo-api -n kargo 8443:443 >/dev/null 2>&1 &
+sleep 2 # Wait a moment for the port-forward to establish
+```
+
+Now, log in to the Kargo API using the default admin credentials. The Terraform code configured the password as `admin`:
+```bash
+kargo login https://127.0.0.1:8443 --admin --insecure-skip-tls-verify
+# When prompted, enter the password: admin
+```
+
+*Note: You can also open `https://127.0.0.1:8443` in your browser to view the Kargo UI (accept the self-signed certificate warning).*
+
+### 3. Create a Sample Project & Stages
+First, create a Kargo Project (which creates a Kubernetes namespace managed by Kargo):
 ```bash
 kargo create project sample-app
 ```
+
+Next, define a **Warehouse** (where your artifacts come from) and your **Stages** (`test`, `uat`, `prod`). Because Kargo is GitOps-native, the best way to create these is declaratively using Kubernetes manifests. 
+
+Apply this YAML to your cluster:
+
+```bash
+cat <<EOF | kubectl apply -f -
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Warehouse
+metadata:
+  name: sample-app
+  namespace: sample-app
+spec:
+  subscriptions:
+    - image:
+        repoURL: public.ecr.aws/nginx/nginx
+        semverConstraint: ^1.24.0
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: test
+  namespace: sample-app
+spec:
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: sample-app
+      sources:
+        direct: true
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: uat
+  namespace: sample-app
+spec:
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: sample-app
+      sources:
+        stages:
+          - test
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: prod
+  namespace: sample-app
+spec:
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: sample-app
+      sources:
+        stages:
+          - uat
+EOF
+```
+
+Once applied, open the Kargo UI (`https://127.0.0.1:8443`) and navigate to the `sample-app` project. You will see your pipeline visually represented! You can click on the `test` stage to manually promote the latest discovered "Freight" (the Nginx image), and then promote it through `uat` and `prod`.
 
 ---
 
@@ -222,6 +334,7 @@ To avoid incurring ongoing AWS charges, destroy the infrastructure when you are 
 # Delete the EKS workload first so Karpenter cleans up the nodes
 kubectl delete deployment inflate
 kubectl delete nodepool default
+kubectl delete ec2nodeclass default
 
 # Scale ECS back to 0
 aws ecs update-service --cluster compute-showcase-ecs --service sample-service --desired-count 0 --region us-east-1
