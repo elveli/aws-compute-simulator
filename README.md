@@ -343,3 +343,6 @@ aws ecs update-service --cluster compute-showcase-ecs --service sample-service -
 cd terraform
 terraform destroy -auto-approve
 ```
+
+[![HitCount](https://hits.dwyl.com/elveli/aws-compute-simulator.svg?style=flat)](http://hits.dwyl.com/elveli/aws-compute-simulator
+.svg)
